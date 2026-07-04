@@ -9,6 +9,8 @@ import pytest
 import serial
 
 from flipper_nfc.cli import apply_connection_config, dispatch
+from flipper_nfc.nfc.pages import PageIOError
+from flipper_nfc.nfc.read import ReadError
 from flipper_nfc.output import CliOutput, parse_device_info
 
 FIXTURE_BODY = """Filetype: Flipper NFC device
@@ -26,6 +28,11 @@ def _args(**kwargs):
         "json": False,
         "quiet": False,
         "no_color": False,
+        "from_page": 3,
+        "verify": False,
+        "input": None,
+        "page": None,
+        "data": None,
     }
     defaults.update(kwargs)
     return type("Args", (), defaults)()
@@ -168,3 +175,137 @@ def test_cli_output_quiet_when_json():
     o = CliOutput.from_args(_args(json=True))
     assert o.quiet is True
     assert o.json_mode is True
+
+
+def test_cli_read_json_error(capsys):
+    session = MagicMock()
+    with (
+        patch("flipper_nfc.cli.open_connection") as open_mock,
+        patch("flipper_nfc.cli.read_tag", side_effect=ReadError("No tag detected")),
+    ):
+        open_mock.return_value.__enter__ = MagicMock(return_value=session)
+        open_mock.return_value.__exit__ = MagicMock(return_value=False)
+        with pytest.raises(SystemExit) as exc:
+            dispatch(_args(command="read", json=True, quiet=True, timeout=1.0, retries=1))
+    assert exc.value.code == 1
+    err = json.loads(capsys.readouterr().err)
+    assert err["ok"] is False
+    assert "No tag detected" in err["error"]
+
+
+def test_cli_write_json(capsys, tmp_path):
+    nfc_file = tmp_path / "tag.nfc"
+    nfc_file.write_text(FIXTURE_BODY + "\nPage 1: 00 00 00 00\n")
+    session = MagicMock()
+    with (
+        patch("flipper_nfc.cli.open_connection") as open_mock,
+        patch("flipper_nfc.cli.write_tag", return_value=[(3, True), (4, True)]),
+    ):
+        open_mock.return_value.__enter__ = MagicMock(return_value=session)
+        open_mock.return_value.__exit__ = MagicMock(return_value=False)
+        dispatch(
+            _args(
+                command="write",
+                input=str(nfc_file),
+                from_page=3,
+                json=True,
+                quiet=True,
+            )
+        )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["failed"] == []
+
+
+def test_cli_write_verify_json(capsys, tmp_path):
+    nfc_file = tmp_path / "tag.nfc"
+    nfc_file.write_text(FIXTURE_BODY)
+    session = MagicMock()
+    with (
+        patch("flipper_nfc.cli.open_connection") as open_mock,
+        patch("flipper_nfc.cli.write_tag", return_value=[(3, True)]),
+        patch("flipper_nfc.cli.verify_writes", return_value=[(3, True)]),
+    ):
+        open_mock.return_value.__enter__ = MagicMock(return_value=session)
+        open_mock.return_value.__exit__ = MagicMock(return_value=False)
+        dispatch(
+            _args(
+                command="write",
+                input=str(nfc_file),
+                from_page=3,
+                verify=True,
+                json=True,
+                quiet=True,
+            )
+        )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["verified"] == [{"page": 3, "match": True}]
+
+
+def test_cli_write_invalid_nfc_json(capsys, tmp_path):
+    bad = tmp_path / "bad.nfc"
+    bad.write_text("not a flipper file")
+    session = MagicMock()
+    with (
+        patch("flipper_nfc.cli.open_connection") as open_mock,
+        pytest.raises(SystemExit) as exc,
+    ):
+        open_mock.return_value.__enter__ = MagicMock(return_value=session)
+        open_mock.return_value.__exit__ = MagicMock(return_value=False)
+        dispatch(
+            _args(
+                command="write",
+                input=str(bad),
+                from_page=3,
+                json=True,
+                quiet=True,
+            )
+        )
+    assert exc.value.code == 1
+    err = json.loads(capsys.readouterr().err)
+    assert err["ok"] is False
+
+
+def test_cli_read_page_json(capsys):
+    session = MagicMock()
+    with (
+        patch("flipper_nfc.cli.open_connection") as open_mock,
+        patch("flipper_nfc.cli.read_page", return_value=bytes.fromhex("E1101200")),
+    ):
+        open_mock.return_value.__enter__ = MagicMock(return_value=session)
+        open_mock.return_value.__exit__ = MagicMock(return_value=False)
+        dispatch(_args(command="read-page", page=3, json=True, quiet=True))
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["page"] == 3
+    assert payload["data"] == "E1101200"
+
+
+def test_cli_write_page_json(capsys):
+    session = MagicMock()
+    with (
+        patch("flipper_nfc.cli.open_connection") as open_mock,
+        patch("flipper_nfc.cli.write_page"),
+    ):
+        open_mock.return_value.__enter__ = MagicMock(return_value=session)
+        open_mock.return_value.__exit__ = MagicMock(return_value=False)
+        dispatch(_args(command="write-page", page=4, data="0103A00C", json=True, quiet=True))
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["page"] == 4
+
+
+def test_cli_write_page_json_error(capsys):
+    session = MagicMock()
+    with (
+        patch("flipper_nfc.cli.open_connection") as open_mock,
+        patch("flipper_nfc.cli.write_page", side_effect=PageIOError("Could not write page 4")),
+        pytest.raises(SystemExit) as exc,
+    ):
+        open_mock.return_value.__enter__ = MagicMock(return_value=session)
+        open_mock.return_value.__exit__ = MagicMock(return_value=False)
+        dispatch(_args(command="write-page", page=4, data="0103A00C", json=True, quiet=True))
+    assert exc.value.code == 1
+    err = json.loads(capsys.readouterr().err)
+    assert err["ok"] is False

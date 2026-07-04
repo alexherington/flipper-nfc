@@ -119,6 +119,7 @@ Tags with CC `0F` or OTP lock bits already set may stay read-only permanently. S
 
 ```bash
 ruff check flipper_nfc tests
+ruff format flipper_nfc tests
 pytest tests/
 ```
 

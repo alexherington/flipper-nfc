@@ -73,12 +73,7 @@ class CliOutput:
 
     @property
     def interactive(self) -> bool:
-        return (
-            not self.json_mode
-            and not self.quiet
-            and sys.stdin.isatty()
-            and sys.stderr.isatty()
-        )
+        return not self.json_mode and not self.quiet and sys.stdin.isatty() and sys.stderr.isatty()
 
     def info(self, msg: str) -> None:
         if self.quiet:
@@ -206,6 +201,7 @@ def inspect_table(report: Any) -> Table:
     for warning in report.warnings:
         table.add_row("Warning", f"[warning]{warning}[/]")
     return table
+
 
 # Module-level default; replaced in dispatch() from args.
 out = CliOutput()

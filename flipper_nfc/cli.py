@@ -17,7 +17,7 @@ from flipper_nfc.config import (
 )
 from flipper_nfc.connection import FlipperConnection, open_connection
 from flipper_nfc.nfc.emulate import emulate_tag
-from flipper_nfc.nfc.format import parse_nfc
+from flipper_nfc.nfc.format import NfcFormatError, parse_nfc
 from flipper_nfc.nfc.inspect import inspect_tag
 from flipper_nfc.nfc.pages import PageIOError, read_page, write_page
 from flipper_nfc.nfc.read import ReadError, read_tag
@@ -293,9 +293,6 @@ def cmd_read(conn: FlipperConnection, args: argparse.Namespace) -> None:
             out.info("Centre the tag over the coil on the Flipper's back and try again.")
         out.fail(str(exc))
 
-    if output is not None and not output.exists():
-        output.write_text(body + "\n")
-
     if args.json:
         dump = parse_nfc(body)
         payload: dict = {
@@ -318,8 +315,11 @@ def cmd_read(conn: FlipperConnection, args: argparse.Namespace) -> None:
 def cmd_write(conn: FlipperConnection, args: argparse.Namespace) -> None:
     if not out.quiet:
         out.info("Hold a [bold]blank writable[/] NTAG on the Flipper's back…")
-    with out.status("[cyan]✍️[/]  Writing pages…"):
-        results = write_tag(conn, Path(args.input), from_page=args.from_page)
+    try:
+        with out.status("[cyan]✍️[/]  Writing pages…"):
+            results = write_tag(conn, Path(args.input), from_page=args.from_page)
+    except NfcFormatError as exc:
+        out.fail(str(exc))
 
     failed = [p for p, ok in results if not ok]
     verified: list[tuple[int, bool]] = []

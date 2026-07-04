@@ -49,14 +49,7 @@ def test_enter_subshell():
 
 
 def test_download_file_strips_trailing_prompt():
-    body = (
-        "Filetype: Flipper NFC device\r\n"
-        "Version: 4\r\n"
-        "UID: AA BB CC DD\r\n"
-        "\r\n"
-        "\r\n"
-        ">: "
-    )
+    body = "Filetype: Flipper NFC device\r\nVersion: 4\r\nUID: AA BB CC DD\r\n\r\n\r\n>: "
     transport = MockTransport(responses=[body.encode()])
     session = FlipperSession(transport)
     result = session.download_file("/ext/nfc/test.nfc")
@@ -73,14 +66,7 @@ def test_download_file_empty_raises():
 
 
 def test_download_file_extracts_body():
-    body = (
-        "Size: 100\r\n"
-        "Filetype: Flipper NFC device\r\n"
-        "Version: 4\r\n"
-        "UID: AA BB CC DD\r\n"
-        "\r\n"
-        ">: "
-    )
+    body = "Size: 100\r\nFiletype: Flipper NFC device\r\nVersion: 4\r\nUID: AA BB CC DD\r\n\r\n>: "
     transport = MockTransport(responses=[body.encode()])
     session = FlipperSession(transport)
     result = session.download_file("/ext/nfc/test.nfc")
@@ -119,3 +105,16 @@ def test_interrupt_sends_ctrl_c():
     session = FlipperSession(transport)
     session.interrupt()
     assert transport.written == [b"\x03"]
+
+
+def test_enter_recovers_stale_nfc_subshell():
+    transport = MockTransport(
+        responses=[
+            b"Welcome back\r\n[nfc]>: \r\n",
+            b"Bye\r\n>: \r\n",
+        ]
+    )
+    session = FlipperSession(transport)
+    with session:
+        assert session._subshell is None
+    assert any(b"exit\r" in w for w in transport.written)

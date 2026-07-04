@@ -16,7 +16,8 @@ pip install -e ".[dev]"
 
 ```bash
 ruff check flipper_nfc tests
-pytest tests/
+ruff format flipper_nfc tests
+pytest tests/ --cov=flipper_nfc
 ```
 
 Tests are mocked — no Flipper hardware required for CI (Ubuntu and macOS, Python 3.11–3.12). If you change NFC or transport behaviour, add or update unit tests.

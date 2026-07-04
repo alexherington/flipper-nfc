@@ -108,7 +108,9 @@ def inspect_tag(conn: FlipperConnection) -> TagInspect:
         result.static_lock_hex = f"{page2[2]:02X} {page2[3]:02X}"
         result.static_lock_set = bool(page2[2] or page2[3])
         if result.static_lock_set:
-            result.warnings.append("Static lock bytes set — pages 3–15 may be permanently read-only")
+            result.warnings.append(
+                "Static lock bytes set — pages 3–15 may be permanently read-only"
+            )
 
     page3 = _try_read(conn, 3)
     if page3 is not None:

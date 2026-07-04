@@ -5,6 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
+from flipper_nfc.nfc.format import NfcFormatError
 from flipper_nfc.nfc.write import verify_writes, write_tag
 
 FIXTURE = Path(__file__).parent / "fixtures" / "hello-world.nfc"
@@ -35,3 +38,10 @@ def test_verify_writes_detects_mismatch():
     verified = verify_writes(conn, FIXTURE, from_page=3, write_results=write_results)
 
     assert verified == [(3, False)]
+
+
+def test_write_tag_invalid_nfc(tmp_path: Path):
+    bad = tmp_path / "bad.nfc"
+    bad.write_text("not a flipper file")
+    with pytest.raises(NfcFormatError, match="Not a Flipper NFC device file"):
+        write_tag(MagicMock(), bad)

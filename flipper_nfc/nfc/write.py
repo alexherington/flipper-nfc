@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from flipper_nfc.connection import FlipperConnection
-from flipper_nfc.nfc.format import NfcDump, NfcFormatError, page_hex, parse_nfc, validate
+from flipper_nfc.nfc.format import NfcDump, page_hex, parse_nfc, validate
 from flipper_nfc.nfc.pages import PageIOError, read_page
 
 
@@ -53,9 +53,6 @@ def verify_writes(
 
 
 def _load_dump(input_path: Path) -> NfcDump:
-    try:
-        dump = parse_nfc(input_path)
-        validate(dump)
-    except NfcFormatError as exc:
-        raise SystemExit(str(exc)) from exc
+    dump = parse_nfc(input_path)
+    validate(dump)
     return dump

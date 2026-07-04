@@ -25,7 +25,6 @@ def test_emulate_with_duration(tmp_path: Path):
 
 def test_write_sends_wrbl_commands():
     conn = MagicMock()
-    conn.supports_shell.return_value = True
     conn.nfc_write_page.return_value = True
 
     results = write_tag(conn, FIXTURE, from_page=4)

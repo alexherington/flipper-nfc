@@ -31,11 +31,26 @@ class FlipperSession:
 
     def __enter__(self) -> FlipperSession:
         self._transport.open()
-        self.send("", wait=1.0)
+        out = self.send("", wait=1.0)
+        self._sync_to_root_shell(out)
         return self
 
     def __exit__(self, *args: object) -> None:
+        if self._subshell:
+            try:
+                self.exit_subshell()
+            except Exception:
+                pass
         self._transport.close()
+
+    def _sync_to_root_shell(self, recent_output: str = "") -> None:
+        """Return to root CLI if we are (or appear to be) inside a subshell."""
+        stale = bool(
+            self._subshell or "[nfc]" in recent_output or SUBSHELL_PROMPT_RE.search(recent_output)
+        )
+        if stale:
+            self.send("exit", wait=1.0)
+            self._subshell = None
 
     def drain(self, timeout: float, idle: float = 0.1) -> str:
         """Read until no new bytes for *idle* seconds or *timeout* elapsed."""

@@ -24,11 +24,7 @@ class NfcFormatError(ValueError):
 
 def clean_dump_body(text: str) -> str:
     """Remove Flipper-specific metadata lines that are not needed in saved dumps."""
-    lines = [
-        line
-        for line in text.splitlines()
-        if not line.startswith(DROP_LINE_PREFIXES)
-    ]
+    lines = [line for line in text.splitlines() if not line.startswith(DROP_LINE_PREFIXES)]
     return "\n".join(lines)
 
 
@@ -66,20 +62,3 @@ def page_hex(dump: NfcDump, page: int) -> str:
     if page not in dump.pages:
         raise NfcFormatError(f"Page {page} not in dump")
     return dump.pages[page].hex().upper()
-
-
-def format_page_line(page: int, data: bytes) -> str:
-    return f"Page {page}: {' '.join(f'{byte:02X}' for byte in data)}"
-
-
-def apply_pages(raw_text: str, pages: dict[int, bytes]) -> str:
-    """Return *raw_text* with selected page lines replaced."""
-    lines: list[str] = []
-    for line in raw_text.splitlines():
-        if match := PAGE_RE.match(line):
-            page_num = int(match.group(1))
-            if page_num in pages:
-                lines.append(format_page_line(page_num, pages[page_num]))
-                continue
-        lines.append(line)
-    return "\n".join(lines)

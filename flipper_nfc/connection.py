@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Protocol
 
@@ -55,34 +57,67 @@ class CliConnection:
 
     def __init__(self, session: FlipperSession) -> None:
         self._session = session
-        self._nfc_subshell = False
+        self._in_nfc_subshell = False
 
     def __enter__(self) -> CliConnection:
         self._session.__enter__()
         return self
 
     def __exit__(self, *args: object) -> None:
-        if self._nfc_subshell:
+        if self._in_nfc_subshell or self._session._subshell:
             try:
                 self._session.exit_subshell()
             except Exception:
                 pass
-            self._nfc_subshell = False
+            self._in_nfc_subshell = False
         self._session.__exit__(*args)
 
+    def _ensure_root_shell(self) -> None:
+        """Storage and device commands require the root CLI, not the NFC subshell."""
+        if self._in_nfc_subshell or self._session._subshell:
+            try:
+                self._session.exit_subshell()
+            except Exception:
+                pass
+            self._in_nfc_subshell = False
+
+    @contextmanager
+    def _nfc_scope(self) -> Iterator[None]:
+        """Enter NFC subshell if needed; exit on leave only if this scope entered it."""
+        entered_here = not self._in_nfc_subshell
+        if entered_here:
+            self._session.enter_subshell("nfc")
+            self._in_nfc_subshell = True
+        try:
+            yield
+        finally:
+            if entered_here:
+                try:
+                    self._session.exit_subshell()
+                except Exception:
+                    pass
+                self._in_nfc_subshell = False
+
+    def _ensure_nfc_subshell(self) -> None:
+        if not self._in_nfc_subshell:
+            self._session.enter_subshell("nfc")
+            self._in_nfc_subshell = True
+
     def device_info(self) -> str:
+        self._ensure_root_shell()
         return self._session.send("device_info", wait=2.0)
 
     def storage_list(self, path: str) -> str:
+        self._ensure_root_shell()
         return self._session.send(f"storage list {path}", wait=2.0)
 
     def storage_read(self, path: str) -> str:
+        self._ensure_root_shell()
         return self._session.download_file(path)
 
     def nfc_dump(self, sd_path: str, timeout_ms: int) -> str:
         timeout_sec = timeout_ms / 1000.0
-        self._session.enter_subshell("nfc")
-        try:
+        with self._nfc_scope():
             out = self._session.send(f"dump -f {sd_path} -t {timeout_ms}", wait=timeout_sec + 2.0)
             if not out.strip() or "Error: timeout" in out or re.search(r"\bError:", out):
                 msg = "No tag detected (timeout)" if "Error: timeout" in out else "Dump failed"
@@ -91,25 +126,15 @@ class CliConnection:
             if saved:
                 return saved.group(1)
             return sd_path
-        finally:
-            self._session.exit_subshell()
 
     def nfc_emulate(self, sd_path: str, duration_sec: float | None = None) -> None:
-        self._session.enter_subshell("nfc")
-        try:
+        with self._nfc_scope():
             self._session.send(f"emulate -f {sd_path}", wait=2.0)
             if duration_sec is not None:
                 time.sleep(duration_sec)
                 self._session.interrupt()
             else:
                 self._wait_interrupt()
-        finally:
-            self._session.exit_subshell()
-
-    def _ensure_nfc_subshell(self) -> None:
-        if not self._nfc_subshell:
-            self._session.enter_subshell("nfc")
-            self._nfc_subshell = True
 
     def nfc_mfu_info(self) -> str:
         self._ensure_nfc_subshell()
@@ -145,12 +170,15 @@ class CliConnection:
         self._session.interrupt()
 
     def upload_file(self, local_path: Path, sd_path: str) -> None:
+        self._ensure_root_shell()
         self._session.upload_file(local_path, sd_path)
 
     def download_file(self, sd_path: str) -> str:
+        self._ensure_root_shell()
         return self._session.download_file(sd_path)
 
     def remove_file(self, sd_path: str) -> None:
+        self._ensure_root_shell()
         self._session.remove_file(sd_path)
 
     def send_raw(self, cmd: str, wait: float = 1.5) -> str:

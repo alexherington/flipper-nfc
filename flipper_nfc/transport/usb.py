@@ -13,18 +13,25 @@ if TYPE_CHECKING:
 
 BAUD = 230400
 
+# macOS Flipper USB serial patterns, then Linux ACM / by-id symlinks.
+_PORT_PATTERNS = (
+    "/dev/tty.usbmodemflip_*",
+    "/dev/cu.usbmodemflip_*",
+    "/dev/ttyACM*",
+    "/dev/serial/by-id/*flipper*",
+    "/dev/serial/by-id/*Flipper*",
+)
+
 
 def find_usb_port(explicit: str | None = None) -> str:
     """Return USB serial port path, preferring tty over cu on macOS."""
     if explicit:
         return explicit
-    for pattern in ("/dev/tty.usbmodemflip_*", "/dev/cu.usbmodemflip_*"):
+    for pattern in _PORT_PATTERNS:
         matches = sorted(glob.glob(pattern))
         if matches:
             return matches[0]
-    raise serial.SerialException(
-        "No Flipper USB port found. Connect via USB or pass --port PATH."
-    )
+    raise serial.SerialException("No Flipper USB port found. Connect via USB or pass --port PATH.")
 
 
 class UsbTransport:
