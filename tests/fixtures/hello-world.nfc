@@ -1,0 +1,25 @@
+Filetype: Flipper NFC device
+Version: 4
+Device type: NTAG/Ultralight
+UID: 04 00 00 00 00 00 00
+# Phone-readable and phone-writable NDEF test for NTAG213.
+# Write with: flipper-nfc write -i hello-world.nfc
+#
+# Layout (NFC Forum Type 2 + NXP factory Lock Control TLV):
+#   Page 3:  E1 10 12 00          CC — read/write granted
+#   Page 4+: 01 03 A0 0C 34 …     Lock Control TLV
+#   NDEF at 0x15, Terminator FE at 0x27 (page 9) — must end BEFORE 0x28
+#   Page 10: 00 00 00 00          dynamic lock bytes (do not store NDEF here)
+#
+# NTAG213 dynamic lock bytes start at byte address 0x28 (page 10 byte 0).
+# An 18-byte "Hello World" NDEF overlaps that area and sets lock bits (0x64),
+# which makes phone apps report the tag as read-only. This fixture uses a
+# 16-byte text record ("Hi World!") so the lock page stays clear.
+Page 3: E1 10 12 00
+Page 4: 01 03 A0 0C
+Page 5: 34 03 10 D1
+Page 6: 01 0C 54 02
+Page 7: 65 6E 48 69
+Page 8: 20 57 6F 72
+Page 9: 6C 64 21 FE
+Page 10: 00 00 00 00
