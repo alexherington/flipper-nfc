@@ -1,5 +1,7 @@
 # flipper-nfc
 
+[![Release](https://img.shields.io/github/v/release/alexherington/flipper-nfc)](https://github.com/alexherington/flipper-nfc/releases)
+
 Read and write NFC tags from your computer using a **Flipper Zero** over **USB**.
 
 Your computer sends commands to the Flipper; the Flipper drives the NFC coil. You still hold the tag on the Flipper's back, but you never need the on-device NFC app or qFlipper file transfer.
