@@ -91,9 +91,11 @@ def test_read_tag_exhausts_retries(tmp_path: Path):
     conn.nfc_dump.side_effect = TimeoutError("No tag detected (timeout)")
     output = tmp_path / "out.nfc"
 
-    with patch("flipper_nfc.nfc.read.time.sleep"):
-        with pytest.raises(ReadError, match="No tag detected"):
-            read_tag(conn, output, timeout_sec=0.1, retries=2)
+    with (
+        patch("flipper_nfc.nfc.read.time.sleep"),
+        pytest.raises(ReadError, match="No tag detected"),
+    ):
+        read_tag(conn, output, timeout_sec=0.1, retries=2)
 
     assert conn.nfc_dump.call_count == 2
 
@@ -104,6 +106,8 @@ def test_read_tag_empty_download_retries(tmp_path: Path):
     conn.download_file.side_effect = DownloadError("Empty response from storage read")
     output = tmp_path / "out.nfc"
 
-    with patch("flipper_nfc.nfc.read.time.sleep"):
-        with pytest.raises(ReadError, match="Empty response"):
-            read_tag(conn, output, timeout_sec=0.1, retries=2)
+    with (
+        patch("flipper_nfc.nfc.read.time.sleep"),
+        pytest.raises(ReadError, match="Empty response"),
+    ):
+        read_tag(conn, output, timeout_sec=0.1, retries=2)

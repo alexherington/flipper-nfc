@@ -125,6 +125,7 @@ def test_cli_help():
         [sys.executable, "-m", "flipper_nfc.cli", "--help"],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 0
     assert "--json" in result.stdout
@@ -139,6 +140,7 @@ def test_cli_no_args_prints_help():
         [sys.executable, "-m", "flipper_nfc.cli"],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 0
     assert "usage:" in result.stdout
@@ -149,6 +151,7 @@ def test_cli_version():
         [sys.executable, "-m", "flipper_nfc.cli", "--version"],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 0
     assert "0.1.0" in result.stdout

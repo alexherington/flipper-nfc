@@ -93,7 +93,7 @@ def test_upload_file_chunks(tmp_path: Path):
     chunk_cmds = [w for w in transport.written if b"write_chunk" in w]
     assert len(chunk_cmds) == 2
     assert f"storage write_chunk /ext/nfc/upload.nfc {CHUNK_SIZE}".encode() in chunk_cmds[0]
-    assert "storage write_chunk /ext/nfc/upload.nfc 100".encode() in chunk_cmds[1]
+    assert b"storage write_chunk /ext/nfc/upload.nfc 100" in chunk_cmds[1]
 
     raw_writes = [w for w in transport.written if b"storage" not in w]
     assert raw_writes[0] == data[:CHUNK_SIZE]

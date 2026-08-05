@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from pathlib import Path
 
 from flipper_nfc.connection import FlipperConnection
@@ -21,7 +22,5 @@ def emulate_tag(
 
     conn.nfc_emulate(sd_path, duration_sec=duration_sec)
 
-    try:
+    with suppress(Exception):
         conn.remove_file(sd_path)
-    except Exception:
-        pass

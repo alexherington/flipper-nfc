@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import re
 import time
+from contextlib import suppress
 from pathlib import Path
+from typing import Self
 
 from flipper_nfc.transport.base import Transport
 
@@ -29,7 +31,7 @@ class FlipperSession:
         self._transport = transport
         self._subshell: str | None = None
 
-    def __enter__(self) -> FlipperSession:
+    def __enter__(self) -> Self:
         self._transport.open()
         out = self.send("", wait=1.0)
         self._sync_to_root_shell(out)
@@ -37,10 +39,8 @@ class FlipperSession:
 
     def __exit__(self, *args: object) -> None:
         if self._subshell:
-            try:
+            with suppress(Exception):
                 self.exit_subshell()
-            except Exception:
-                pass
         self._transport.close()
 
     def _sync_to_root_shell(self, recent_output: str = "") -> None:
