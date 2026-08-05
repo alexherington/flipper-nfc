@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Self
 
 from flipper_nfc.session import FlipperSession
 from flipper_nfc.transport.usb import UsbTransport
@@ -59,26 +59,22 @@ class CliConnection:
         self._session = session
         self._in_nfc_subshell = False
 
-    def __enter__(self) -> CliConnection:
+    def __enter__(self) -> Self:
         self._session.__enter__()
         return self
 
     def __exit__(self, *args: object) -> None:
         if self._in_nfc_subshell or self._session._subshell:
-            try:
+            with suppress(Exception):
                 self._session.exit_subshell()
-            except Exception:
-                pass
             self._in_nfc_subshell = False
         self._session.__exit__(*args)
 
     def _ensure_root_shell(self) -> None:
         """Storage and device commands require the root CLI, not the NFC subshell."""
         if self._in_nfc_subshell or self._session._subshell:
-            try:
+            with suppress(Exception):
                 self._session.exit_subshell()
-            except Exception:
-                pass
             self._in_nfc_subshell = False
 
     @contextmanager
@@ -92,10 +88,8 @@ class CliConnection:
             yield
         finally:
             if entered_here:
-                try:
+                with suppress(Exception):
                     self._session.exit_subshell()
-                except Exception:
-                    pass
                 self._in_nfc_subshell = False
 
     def _ensure_nfc_subshell(self) -> None:

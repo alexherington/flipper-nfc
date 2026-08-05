@@ -39,6 +39,8 @@ def test_find_usb_port_linux_by_id():
 
 
 def test_find_usb_port_not_found():
-    with patch("flipper_nfc.transport.usb.glob.glob", return_value=[]):
-        with pytest.raises(serial.SerialException, match="No Flipper USB port found"):
-            find_usb_port()
+    with (
+        patch("flipper_nfc.transport.usb.glob.glob", return_value=[]),
+        pytest.raises(serial.SerialException, match="No Flipper USB port found"),
+    ):
+        find_usb_port()

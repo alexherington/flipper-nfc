@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from pathlib import Path
 
 from flipper_nfc.connection import FlipperConnection
@@ -71,10 +72,8 @@ def _read_once(conn: FlipperConnection, output: Path | None, timeout_sec: float)
     if output is not None:
         _write_output(output, body)
     if _is_ephemeral_sd_path(sd_path):
-        try:
+        with suppress(Exception):
             conn.remove_file(sd_path)
-        except Exception:
-            pass
     return body
 
 
